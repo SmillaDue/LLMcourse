@@ -3,7 +3,6 @@ from app.main import app
 
 client = TestClient(app)
 
-
 def test_positive_sentiment():
     response = client.post(
         "/v1/sentiment",
@@ -29,3 +28,21 @@ def test_neutral_sentiment():
     )
     assert response.status_code == 200
     assert response.json() == {"sentiment": "neutral"}
+
+
+def test_danish_positive_sentiment():
+    response = client.post(
+        "/v1/sentiment",
+        json={"text": "Det var en god lærer"}
+    )
+    assert response.status_code == 200
+    assert response.json() == {"sentiment": "positive"}
+
+
+def test_danish_negative_sentiment():
+    response = client.post(
+        "/v1/sentiment",
+        json={"text": "Det var et dårligt kursus"}
+    )
+    assert response.status_code == 200
+    assert response.json() == {"sentiment": "negative"}
