@@ -1,14 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from pydantic import BaseModel
-
-from app.sentiment import sentiment
+from app.pdf import pdf_to_senteces
 
 app = FastAPI()
 
 class TextInput(BaseModel):
     text: str
 
-@app.post("/v1/sentiment")
-def analyze_sentiment(input: TextInput):
-    result = sentiment(input.text)
-    return {"sentiment": result}
+@app.post("/v1/extract-sentences")
+async def extract_sentences(pdf_file: UploadFile = File(...)):
+    content = await pdf_file.read()
+    sentences = pdf_to_senteces(content)
+    return {"sentences": sentences}
+

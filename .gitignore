@@ -79,6 +79,5 @@ dockerfiles/__pycache__/
 tests/__pycache__/
 tests/*.pyc
 
-# Ignore MLadv cache (if any)
-MLadv/__pycache__/
-MLadv/*.pyc
+# Ignore exercise folder
+exercises/
