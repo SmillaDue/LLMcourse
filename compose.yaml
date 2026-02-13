@@ -1,0 +1,14 @@
+services:
+  grobid:
+    image: grobid/grobid:0.8.1
+  app:
+    build: 
+      context: .
+      dockerfile: dockerfiles/api_pdf.Dockerfile
+    depends_on:
+      - grobid
+    environment:
+      - GROBID_URL=http://grobid:8070
+    ports:
+      - "8000:8000"
+
