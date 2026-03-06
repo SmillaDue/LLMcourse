@@ -29,6 +29,7 @@ build/
 # Project specific
 exercises/
 frontend/*.pdf
+data/
 
 # UV lock file (optional - commit if you want reproducible builds)
 # uv.lock

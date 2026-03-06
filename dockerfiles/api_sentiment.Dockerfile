@@ -9,8 +9,9 @@ COPY pyproject.toml uv.lock ./
 # Install runtime dependencies only
 RUN uv sync --frozen --no-dev
 
-# Copy application code
+# Copy application code and data
 COPY app/ app/
+COPY data/ data/
 
 # Expose FastAPI port
 EXPOSE 8000
