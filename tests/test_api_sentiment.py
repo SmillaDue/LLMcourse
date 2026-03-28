@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from app.main import app
+from LLMcourse.app.fast_api_w6_main import app
 
 client = TestClient(app)
 

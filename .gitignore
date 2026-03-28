@@ -22,6 +22,7 @@ build/
 
 # Logs
 *.log
+*.log.txt
 
 # Environment variables
 .env
@@ -33,3 +34,8 @@ data/
 
 # UV lock file (optional - commit if you want reproducible builds)
 # uv.lock
+
+# QLever index files
+keyboards.*
+!keyboards.nt
+

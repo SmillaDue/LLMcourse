@@ -3,7 +3,7 @@ os.environ.setdefault("GROBID_URL", "http://localhost:8070")
 # The above is necessary if we have a GROBID container running to do the conversion
 
 from fastapi.testclient import TestClient
-from app.main import app
+from LLMcourse.app.fast_api_w6_main import app
 
 client = TestClient(app)
 

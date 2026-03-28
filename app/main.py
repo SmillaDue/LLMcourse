@@ -11,9 +11,12 @@ from app.information_retrieval import (
     course_data
 )
 from app.llm import call_llm
+from app.pipeline import answer_question
 
 app = FastAPI()
 
+class TextInput(BaseModel):
+    text: str
 
 def normalize_query(query: str) -> str:
     """Normalize query by removing accents and converting to lowercase.
@@ -25,55 +28,28 @@ def normalize_query(query: str) -> str:
     return ''.join([c for c in nfkd if not unicodedata.combining(c)]).lower()
 
 
-class TextInput(BaseModel):
-    text: str
+@app.get("/v1/health")
+def health():
+    doc_course_ids, _, _, _, _, objectives_text = build_documents(course_data)
+    return {"status": "ok", "index_sizes": {"courses": len(doc_course_ids), "objectives": len(objectives_text)}}
 
+@app.post("/v1/query")
+def query_endpoint(text_input: TextInput):
+    """
+    Text-to-query endpoint:
+    - takes natural language input
+    - converts to SPARQL
+    - queries QLever
+    - returns result
+    """
 
-"""
-class PersonRequest(BaseModel):
-    person: str
-    context: str | None = None
+    try:
+        result = answer_question(text_input.text)
+        return result
 
-@app.post("/v1/birthday")
-async def birtday(request: PersonRequest):
-
-    qid = search_person(request.person)
-    birthday = get_birthday(qid)
-
-    return {
-        "person": request.person,
-        "qid": qid,
-        "birtday": birthday
-    }
-
-
-@app.post("/v1/students")
-def students(request: PersonRequest):
-
-    qid = search_person(request.person)
-    students = get_students(qid)
-
-    return {
-        "person": request.person,
-        "qid": qid,
-        "students": students
-    }
-
-
-@app.post("/v1/all")
-def all_info(request: PersonRequest):
-    qid = search_person(request.person)
-    birthday = get_birthday(qid)
-    students = get_students(qid)
-
-    return {
-        "person": request.person,
-        "qid": qid,
-        "birthday": birthday,
-        "students": students
-    }
-"""
-
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 """
 @app.post("/v1/extract-sentences")
 async def extract_sentences(pdf_file: UploadFile = File(...)):
@@ -88,100 +64,3 @@ async def extract_persons(text_input: TextInput):
     names = text_to_persons_llm(content)
     return {"persons": names}
 """
-
-
-@app.get("/v1/search")
-def search_courses(query: str, top_k: int = 5, mode: str = "sparse"):
-    if mode == "sparse":
-        results = course_retrieval(course_data, query, top_k=top_k)
-    elif mode == "dense":
-        results = dense_retrieval(course_data, query, top_k=top_k)
-    elif mode == "hybrid":
-        results = hybrid_retrieval(course_data, query, top_k=top_k)
-    else:
-        raise HTTPException(status_code=400, detail="Invalid mode")
-    
-    return {"query": query, "results": results}
-
-@app.get("/v1/ask")
-def ask(query: str, top_k: int = 5, mode: str = "hybrid", alpha: float = 0.6):
-    # 1. Retrieve documents
-    if mode == "sparse":
-        results = course_retrieval(course_data, query, top_k=top_k)
-    elif mode == "dense":
-        results = dense_retrieval(course_data, query, top_k=top_k)
-    elif mode == "hybrid":
-        results = hybrid_retrieval(course_data, query, alpha=alpha, top_k=top_k)
-    else:
-        raise HTTPException(status_code=400, detail="Invalid mode")
-
-    # 2. Build context
-    course_lookup = {c["course_code"]: c for c in course_data}
-
-    context = ""
-    for r in results:
-        course = course_lookup[r["course_id"]]
-
-        content = course.get("content", "")
-        content = content[:1000]  # Include more content
-        
-        context += f"""
-Course: {course['title']}
-Code: {course['course_code']}
-Department: {course['fields'].get('Department', 'Unknown')}
-Teacher: {course['fields'].get('Responsible', 'Unknown')}
-ECTS: {course['fields'].get('Point( ECTS )', 'Unknown')}
-Language: {course['fields'].get('Language of instruction', 'Unknown')}
-Learning Objectives: {'; '.join(course['learning_objectives'])}
-Content: {content}
----
-"""
-    
-    context = context[:5000]  # More generous context limit
-
-    # 3. Build prompt
-    prompt = f"""You are a helpful assistant for DTU course information.
-
-Answer the question based on the provided context.
-If the answer is not found in the context, say "I don't know".
-Be concise and precise.
-
-Question: {query}
-
-Context:
-{context}
-
-Answer:"""
-
-    # 4. Call LLM
-    answer = call_llm(prompt)
-
-    return {
-        "query": query,
-        "answer": answer,
-        "retrieved_courses": results
-    }
-
-@app.get("/v1/objectives/search")
-def search_objectives(query: str, top_k: int = 5):
-    results = objective_retrieval(course_data, query, top_k=top_k)
-    return {"query": query, "results": results}
-
-
-@app.get("/v1/courses/{course_id}/similar")
-def similar_courses(course_id: str, top_k: int = 5):
-    # Find the course and use its text as the query
-    course = next((c for c in course_data if c["course_code"] == course_id), None)
-    if course is None:
-        raise HTTPException(status_code=404, detail=f"Course {course_id} not found")
-    query = course["title"] + "\n" + "\n".join(course["learning_objectives"])
-    results = course_retrieval(course_data, query, top_k=top_k)
-    # Exclude the query course itself from results
-    results = [r for r in results if r["course_id"] != course_id]
-    return {"query_course_id": course_id, "results": results}
-
-
-@app.get("/v1/health")
-def health():
-    doc_course_ids, _, _, _, _, objectives_text = build_documents(course_data)
-    return {"status": "ok", "index_sizes": {"courses": len(doc_course_ids), "objectives": len(objectives_text)}}
